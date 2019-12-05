@@ -109,12 +109,14 @@ def Simulated_Annealing(ng,nr,nh):
      current_cost=cost_solution(prob.G,current_solution)
      best_cost=current_cost
      best=current_solution
-     print(best_cost)
+     hospital=[2,2,5,5,0,1,2,3,4,5,6]
+     print("inital cost= ", best_cost)
      k=1
      T=10000
      for j in range(50000):
          number=rnd.randint(2,7)
-#         print(number)
+         if j>10000:
+             number=hospital[rnd.randint(len(hospital))]
          if number==0:
              paths_before=copy.deepcopy(paths)
              solution_before=copy.deepcopy(current_solution)
@@ -216,19 +218,19 @@ def Simulated_Annealing(ng,nr,nh):
 #             current_solution=copy.deepcopy(first)
 #             extract=extract_paths(prob.G,current_solution)
 #             paths=extract[1]
-     print(current_cost,cost_solution(prob.G,best))
+     print("best cost= ",best_cost)
      extract=extract=extract_paths(prob.G,best)
      best=extract[0]
      best_path=extract[1]
-     print(paths)
-     print(first_paths)
-#     print(best_path)
+#     print(paths)
+#     print(first_paths)
+     print(best_path)
      plotting(prob.G,best)
      
      return best
  
  
-solution=Simulated_Annealing(10,5,4)
+solution=Simulated_Annealing(100,25,4)
 
 #
 
