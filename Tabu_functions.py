@@ -24,35 +24,13 @@ class sol:
         self.total_cost = total_cost
 
 
-s0=[(0,3), (3, 9),(9, 0), (0, 2), (2, 5), (5, 7), (7, 0), (0, 6), (6, 4), (4, 8), (8, 1)]
+#s0=[(0,3), (3, 9),(9, 0), (0, 2), (2, 5), (5, 7), (7, 0), (0, 6), (6, 4), (4, 8), (8, 1)]
 #initial solution
 
-n_g=6#these are the characteristics of the initial solution
-n_r=2
-n_h=2
-n_k=3
-n_p=n_g+n_r
-total_nodes=n_g+n_r+n_h
-
-G=[]# creating a graph to "fit" that initial solution
-
-for i in range(total_nodes):
-    if i<n_h:
-        G.append(node(rnd.randint(20),rnd.randint(20),1))
-    elif i>=n_h and i<n_h+n_g:
-        G.append(node(rnd.randint(20),rnd.randint(20),2))
-    else:
-        G.append(node(rnd.randint(20),rnd.randint(20),3))
-
-A=[(i,j) for i in range(total_nodes) for j in range(total_nodes) if i!=j] #set of arcs
-
-E=[edge(G[i],G[j]) for i,j in A] #all edges
-
-def cost_solution(solution): #given a set of arcs, it will give you the total cost (distance) which is NOT yet the time
+def cost_solution(G,solution): #given a set of arcs, it will give you the total cost (distance) which is NOT yet the time
     total_=0
     for i,j in solution:
         total_=total_+edge(G[i],G[j]).cost
-    print(total_)
     return total_
 
 def sol_from_paths(paths): #it will divide each solution in their respective paths. A path or route is when an ambulance leaves and comes back to any hospital
@@ -63,11 +41,15 @@ def sol_from_paths(paths): #it will divide each solution in their respective pat
             sol.append((paths[j][i],paths[j][i+1]))
     return sol
 
-def extract_paths(solution): #SOLVE the empty dictionary
+def extract_paths(G,solution): #SOLVE the empty dictionary
+    nr=0
+    for i in G:
+        if i.type==3:
+            nr=nr+1
     sol=solution
-    paths={i:[] for i in range(n_k)}
+    paths={i:[] for i in range(nr)}
     while len(sol)>0:
-        for j in range(n_k):
+        for j in range(nr):
             for i in sol: 
                 if G[i[0]].type==1 and len(paths[j])==0:
                     paths[j].append(i[0])
@@ -84,9 +66,12 @@ def extract_paths(solution): #SOLVE the empty dictionary
 
 def swapPositions(List, pos1, pos2): 
     List[pos1], List[pos2] = List[pos2], List[pos1] 
-    return list
+    return List
+def swapPositionsExternal(List1, pos1,List2, pos2): 
+    List1[pos1], List2[pos2] = List2[pos2], List1[pos1] 
+    return List1,List2
 
-def internal_patients_swap(paths): #swaps two green patients within the same route (path).
+def internal_patients_swap(G,paths): #swaps two green patients within the same route (path).
     paths=paths
     pos1=2295
     pos2=2295
@@ -105,7 +90,7 @@ def internal_patients_swap(paths): #swaps two green patients within the same rou
             sol=sol_from_paths(paths)
             return sol,paths
 
-def internal_patients_relocate(paths): #changes the position of a green patient within one route (path). it is not allowed to be inserted after a red patient
+def internal_patients_relocate(G,paths): #changes the position of a green patient within one route (path). it is not allowed to be inserted after a red patient
     paths=paths
     pos1=2295
     pos2=2295
@@ -124,7 +109,7 @@ def internal_patients_relocate(paths): #changes the position of a green patient 
             sol=sol_from_paths(paths)
             return sol,paths
 
-def single_hospital_change(paths): #changes the destination hospital to an alternative hospital. We need to check feasibility for this one because of the capacity of hospitals 
+def single_hospital_change(G,paths): #changes the destination hospital to an alternative hospital. We need to check feasibility for this one because of the capacity of hospitals 
     
     paths=paths
     hosp=[]
@@ -140,33 +125,97 @@ def single_hospital_change(paths): #changes the destination hospital to an alter
     sol=sol_from_paths(paths)
     return sol,paths
 
-def external_patients_relocate(paths): #chages one patient from route i to route k
+def has_green(G,paths):
+    green_exists=[]
+    for i in paths.keys():
+        green_count=0
+        for j in paths[i]:
+            if G[j].type==2:
+                green_count=green_count+1
+                break
+        green_exists.append(green_count)
+    return green_exists
+
+def external_patients_relocate(G,paths): #chages one patient from route i to route k
     paths=paths
     pos1=2295
     pos2=2295
+    green_exists=has_green(G,paths)
     greens_i=[] #stores indexes of green patients in path i
     greens_k=[] #stores indexes of green patients in path k
     i=1; k=1
-    cnt=1
-    while cnt>0:
-        while i==k: #pick two different random paths
+    cnt=0
+    if sum(green_exists)<1:
+        return sol_from_paths,paths
+    
+    if sum(green_exists)==1:
+       for j in range(len(green_exists)):
+           if green_exists[j]==1:
+               k=j
+       i=rnd.randint(len(paths.keys()))
+       while i==k:
+           i=rnd.randint(len(paths.keys()))
+    else:
+        while cnt==0: #pick two different random paths   
             i=rnd.randint(len(paths.keys()))
             k=rnd.randint(len(paths.keys()))
-        for j in range(len(paths[i])):
-            if G[paths[i][j]].type==2:
-                greens_i.append(j) #index of green patients in path i
-        for j in range(len(paths[k])):
-            if G[paths[k][j]].type==2:
-                greens_k.append(j) #index of green patients in path k
-            if len(greens_i)==0 or len(greens_k)==0:
-                continue    
-        pos1=greens_i[rnd.randint(len(greens_i))] #index: relocate from
-        pos2=greens_k[rnd.randint(len(greens_k))] #index: relocate to
+            if i!=k and (green_exists[i]+green_exists[k]==2):
+                cnt=1
+    for j in range(len(paths[i])):
+        if G[paths[i][j]].type==2:
+            greens_i.append(j) #index of green patients in path i
+    for j in range(len(paths[k])):
+        if G[paths[k][j]].type==2:
+            greens_k.append(j) #index of green patients in path k
+    pos2=greens_k[rnd.randint(len(greens_k))] #index: relocate to
+    
+    if len(greens_i)==0:
+        pos1=1
         paths[i].insert(pos1,paths[k].pop(pos2)) 
-        sol=sol_from_paths(paths)
-        return sol,paths
+    else:
+        pos1=greens_i[rnd.randint(len(greens_i))] #index: relocate from
+        paths[i].insert(pos1,paths[k].pop(pos2)) 
+    sol=sol_from_paths(paths)
+    return sol,paths
 
-def external_path_swap(paths): #picks a green patient in path i and k, and anything after those patients get swapped
+def external_patients_swap(G,paths): #chages one patient from route i to route k
+    paths=paths
+    pos1=2295
+    pos2=2295
+    green_exists=has_green(G,paths)
+    greens_i=[] #stores indexes of green patients in path i
+    greens_k=[] #stores indexes of green patients in path k
+    i=1; k=1
+    cnt=0
+    if sum(green_exists)<=1:
+        return sol_from_paths(paths),paths
+    
+    else:
+        while cnt==0: #pick two different random paths   
+            i=rnd.randint(len(paths.keys()))
+            k=rnd.randint(len(paths.keys()))
+            if i!=k and (green_exists[i]+green_exists[k]==2):
+                cnt=1
+    for j in range(len(paths[i])):
+        if G[paths[i][j]].type==2:
+            greens_i.append(j) #index of green patients in path i
+    for j in range(len(paths[k])):
+        if G[paths[k][j]].type==2:
+            greens_k.append(j) #index of green patients in path k
+    pos2=greens_k[rnd.randint(len(greens_k))] #index: relocate to
+    
+    if len(greens_i)==0:
+        pos1=1
+    else:
+        pos1=greens_i[rnd.randint(len(greens_i))] #index: relocate from
+    swapPositionsExternal(paths[i],pos1,paths[k],pos2)
+    sol=sol_from_paths(paths)
+    return sol,paths
+
+
+
+
+def external_path_swap(G,paths): #picks a green patient in path i and k, and anything after those patients get swapped
     paths=paths
     pos1=0
     pos2=0
@@ -174,6 +223,7 @@ def external_path_swap(paths): #picks a green patient in path i and k, and anyth
     greens_k=[] #stores indexes of green patients in path k
     i=1; k=1
     cnt=1
+    counter=0
     while cnt>0:
         while i==k: #pick two different random paths
             i=rnd.randint(len(paths.keys()))
@@ -185,7 +235,11 @@ def external_path_swap(paths): #picks a green patient in path i and k, and anyth
             if G[paths[k][j]].type==2:
                 greens_k.append(j) #index of green patients in path k
         if len(greens_i)==0 or len(greens_k)==0:
-            break  
+            counter=counter+1
+            rnd.seed(rnd.randint(5000))
+            if counter>50:
+                return sol_from_paths(paths),paths
+            continue
         pos1=greens_i[rnd.randint(len(greens_i))] #index of path i
         pos2=greens_k[rnd.randint(len(greens_k))] #index of path k
 
@@ -220,10 +274,16 @@ def external_hospital_swap(paths):
     sol=sol_from_paths(paths)
     return sol,paths
 
+def node_to_edge(s0):
+    edges=[]
+    for i in range(len(s0)-1):
+        edges.append([s0[i],s0[i+1]])
+    return edges
+
 def plotting(G,s0):
     for i in G:
         if i.type==1:
-            plt.scatter(i.x,i.y,c='y')
+            plt.scatter(i.x,i.y,c='b',marker='s')
         elif i.type==2:
              plt.scatter(i.x,i.y,c='g')
         else:
@@ -231,11 +291,7 @@ def plotting(G,s0):
 
     for i,j in s0:
         plt.plot([G[i].x, G[j].x], [G[i].y,G[j].y],c='b', alpha=0.5)
-    for i in range(len(G)):
-        plt.annotate((i),(G[i].x+0.1,G[i].y+0.1))
+#    for i in range(len(G)):
+#        plt.annotate((i),(G[i].x+0.1,G[i].y+0.1))
     plt.axis('equal')
 
-
-cost=cost_solution(s0)
-new_sol=
-plotting(G,new_sol[0])
